@@ -1,0 +1,395 @@
+---
+title: "RLE_estuaries"
+format: html
+---
+
+#### Set up the Project and import the data
+
+```{r}
+# Add packages: 
+library(sf)
+library(tidyverse)
+library(readxl)
+
+# Add spatial data 
+est_v <-st_read("C:/Users/skownoa/Dropbox/NBAwork/Estuaries/NBA2018_Estuaries_RLE_PL_COND_PRES_PRIORsj.shp") 
+
+# Add tabular data
+est_t <- read_excel("C:/Users/skownoa/Dropbox/NBAwork/Estuaries/EstuaryHealth2025.xlsx", sheet = "Data")
+
+```
+
+#### Clean up input data
+
+```{r}
+
+options(scipen = 999)
+
+# Estuaries have seperate features for EFZ SHORE and EFZ, merge these together for calculating PA extent and EOO etc. 
+est_v2 <- est_v %>%
+  group_by(EST_IDw) %>%
+  summarise(across(where(~ !inherits(.x, "sfc")), first),  
+            geometry = st_union(geometry),                
+            .groups = "drop") %>%
+  select(EST_IDw) %>%
+  rename(EstID = EST_IDw)
+  
+est_t2 <- est_t %>%
+  select(EstID, NAME, Full_Ecosystem_type_name, Estuary_Ecosystem_Type_Code, EFZ_Ha, score24, score18, score11, Fishing_Pressure)
+
+# combined estuary data into a table
+est <- est_v2 %>%
+  left_join(est_t2, by = "EstID") %>%
+  # recalculate EFZ area m2 to check the data from Lara is correct
+   mutate(efz_area = as.numeric(st_area(.))) %>%
+st_drop_geometry() %>%
+  # convert health scores to Condition Classes 
+  mutate(cond11 = case_when(
+    round(score11, 0) >= 90 ~ "Natural",
+    round(score11, 0) >= 75 ~ "NearNatural",
+    round(score11, 0) >= 60 ~ "Moderate",
+    round(score11, 0) >= 40 ~ "Heavily",
+    TRUE ~ "Severely"
+  )) %>%
+  mutate(cond18 = case_when(
+    round(score18, 0) >= 90 ~ "Natural",
+    round(score18, 0) >= 75 ~ "NearNatural",
+    round(score18, 0) >= 60 ~ "Moderate",
+    round(score18, 0) >= 40 ~ "Heavily",
+    TRUE ~ "Severely"
+  )) %>%
+   mutate(cond24 = case_when(
+    round(score24, 0) >= 90 ~ "Natural",
+    round(score24, 0) >= 75 ~ "NearNatural",
+    round(score24, 0) >= 60 ~ "Moderate",
+    round(score24, 0) >= 40 ~ "Heavily",
+    TRUE ~ "Severely"
+  )) %>%
+  # convert health scores to PES classes
+  mutate(pes11 = case_when(
+    round(score11, 0) >= 90 ~ "A",
+    round(score11, 0) >= 75 ~ "B",
+    round(score11, 0) >= 60 ~ "C",
+    round(score11, 0) >= 40 ~ "D",
+    TRUE ~ "E"
+  )) %>%
+  mutate(pes18 = case_when(
+    round(score18, 0) >= 90 ~ "A",
+    round(score18, 0) >= 75 ~ "B",
+    round(score18, 0) >= 60 ~ "C",
+    round(score18, 0) >= 40 ~ "D",
+    TRUE ~ "E"
+  )) %>%
+   mutate(pes24 = case_when(
+    round(score24, 0) >= 90 ~ "A",
+    round(score24, 0) >= 75 ~ "B",
+    round(score24, 0) >= 60 ~ "C",
+    round(score24, 0) >= 40 ~ "D",
+    TRUE ~ "E"
+  )) 
+
+
+```
+
+#### Spatial Analysis - Calculate EOO using convex hulls in sf
+
+```{r}
+# prepare an estuary spatial layer with correct names (from the table)
+est_v3 <- est_v2 %>%
+  left_join(est_t2, by = "EstID")
+  
+# Initialize a list to store results
+eoo_list <- list()
+
+# Iterate through unique Est type values 
+for (est_type in unique(est_v3$Full_Ecosystem_type_name)) {
+  subset_data <- est_v3 %>% filter(Full_Ecosystem_type_name == est_type)
+  if (nrow(subset_data) > 0) {
+    convex_hull <- st_convex_hull(st_union(subset_data))
+    hull_area <- st_area(convex_hull)
+    eoo_list[[est_type]] <- as.numeric(hull_area)
+  }
+}
+
+eoo_df <- data.frame(
+  Full_Ecosystem_type_name = names(eoo_list),
+  AREA_EOO = unlist(eoo_list)
+) %>%
+  mutate(eoo_km2 = AREA_EOO/1000000) %>%
+  select(!AREA_EOO)
+
+write.csv(eoo_df, "outputs/EOO_all.csv")
+
+```
+
+#### Summarise data per type
+
+```{r}
+
+#summarise by est type including extent per type per condition class - this allows for inclusion of pes in the RLE formula
+
+options(scipen = 999)
+
+# overall type x pes summary
+
+est_type_24 <- est %>%
+    group_by(Full_Ecosystem_type_name, pes24) %>%
+  summarise(extent = sum(as.numeric(efz_area), na.rm = TRUE)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = pes24, values_from = extent, values_fill = list(extent = 0))  %>%
+  mutate(tot_ext24 = rowSums(across(c(A, B, C, D, E))))
+est_type_18 <- est %>%
+    group_by(Full_Ecosystem_type_name, pes18) %>%
+  summarise(extent = sum(as.numeric(efz_area), na.rm = TRUE)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = pes18, values_from = extent, values_fill = list(extent = 0))  %>%
+  mutate(tot_ext18 = rowSums(across(c(A, B, C, D, E)))) %>%
+  rename(A18=A, B18=B, C18=C, D18=D, E18=E)
+est_type_11 <- est %>%
+    group_by(Full_Ecosystem_type_name, pes11) %>%
+  summarise(extent = sum(as.numeric(efz_area), na.rm = TRUE)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = pes11, values_from = extent, values_fill = list(extent = 0))  %>%
+  mutate(tot_ext11 = rowSums(across(c(A, B, C, D, E)))) %>%
+  rename(A11=A, B11=B, C11=C, D11=D, E11=E)
+  
+
+# Join the tables above - this makes a single table in which all the required metrics can be found to compute RLE
+ 
+  est_type_metrics <- est_type_24 %>%
+   left_join(est_type_18, by = "Full_Ecosystem_type_name") %>%
+   left_join(est_type_11, by = "Full_Ecosystem_type_name") %>%
+   left_join(eoo_df, by = "Full_Ecosystem_type_name") %>%
+ # 2018 metrics
+    mutate(prp18_cde = (C18 + D18 + E18)/tot_ext18) %>%
+    mutate(prp18_de = (D18 + E18)/tot_ext18) %>%
+    mutate(prp18_e= (E18)/tot_ext18) %>%
+    mutate(pes_decline1118 = ifelse(
+       is.na(((A11 + B11 + C11) - (A18 + B18 + C18)) / (A11 + B11 + C11)) |
+       (((A11 + B11 + C11) - (A18 + B18 + C18)) / (A11 + B11 + C11)) > 0.01,
+  "decline1118", "nodecline1118")) %>% # isNA added for types with ABC extent = 0 :  these are declining
+ # 2024 metrics
+    mutate(prp24_cde = (C + D + E)/tot_ext24) %>%
+    mutate(prp24_de = (D + E)/tot_ext24) %>%
+    mutate(prp24_e= (E)/tot_ext24) %>%
+    mutate(pes_decline1824 = ifelse(
+       is.na(((A18 + B18 + C18) - (A + B + C)) / (A18 + B18 + C18)) |
+       (((A18 + B18 + C18) - (A + B + C)) / (A18 + B18 + C18)) > 0.01,
+  "decline1824", "nodecline1824")) %>% # isNA added for types with ABC extent = 0 :  these are declining
+ # D3 assesments
+    mutate(D3_18 = case_when( prp18_e >= 0.9 ~ "CR", 
+       prp18_e >= 0.7 | prp18_de >=0.9 ~ "EN",
+       prp18_e >= 0.5 | prp18_de >=0.7 | 
+       prp18_cde >= 0.9 ~ "VU", 
+       TRUE ~ "LC")) %>% 
+    mutate(D3_24 = case_when( prp24_e >= 0.9 ~ "CR", 
+       prp24_de >= 0.3 | prp24_de >=0.9 ~ "EN",
+       prp24_e >= 0.5 | prp24_de >=0.7 | 
+       prp24_cde >= 0.9 ~ "VU", 
+       TRUE ~ "LC")) %>%
+#  B1i using ongoing decline  
+   mutate(B1aii_18 = case_when( pes_decline1118 == "decline118" & eoo_km2  <= 2000 ~ "CR",
+       pes_decline1118 == "decline1118" & eoo_km2  <= 20000 ~ "EN",
+       pes_decline1118 == "decline1118" & eoo_km2  <= 50000 ~ "VU",
+       TRUE ~ "LC")) %>%
+   mutate(B1aii_24 = case_when( pes_decline1824 == "decline1824" & eoo_km2  <= 2000 ~ "CR",
+       pes_decline1824 == "decline1824" & eoo_km2  <= 20000 ~ "EN",
+       pes_decline1824 == "decline1824" & eoo_km2  <= 50000 ~ "VU",
+       TRUE ~ "LC")) %>%
+   mutate(RLE_18 = case_when(B1aii_24 == "CR" | D3_18 == "CR" ~ "CR", 
+       B1aii_24 == "EN" | D3_18 == "EN" ~ "EN",
+       B1aii_24 == "VU" | D3_18 == "VU" ~ "VU",
+       TRUE ~ "LC")) %>% # using decline 2018-2024 as proxy for decline 2014-2018
+   mutate(RLE_24 = case_when(B1aii_24 == "CR" | D3_24 == "CR" ~ "CR", 
+       B1aii_24 == "EN" | D3_24 == "EN" ~ "EN",
+       B1aii_24 == "VU" | D3_24 == "VU" ~ "VU",
+       TRUE ~ "LC")) %>%
+# add in van Deventer 2018 method: SA approach assuming A and B are intact rest is lost but also counting C towards  VU
+    mutate(A3sa_24 = case_when( prp24_cde >= 0.8 ~ "CR", 
+                              prp24_cde >= 0.65 ~ "EN",
+                              prp24_de >= 0.4 ~ "VU", 
+                                 TRUE ~ "LC")) %>%
+    mutate(A3sa_18 = case_when( prp18_cde >= 0.8 ~ "CR", 
+                               prp18_cde >= 0.65 ~ "EN",
+                               prp18_de >= 0.4 ~ "VU", 
+                                 TRUE ~ "LC"))
+    
+   
+   # reattached bioregions
+ bioreg <- est_t %>%
+  select(Full_Ecosystem_type_name, Biogeographical_Region) %>%
+      distinct(Full_Ecosystem_type_name, .keep_all = TRUE)
+ 
+ est_type_metrics <- est_type_metrics %>%
+      left_join(bioreg , by = "Full_Ecosystem_type_name" )
+ 
+    
+   # export a csv of results - Condition and EPL per river type 2018 and 2024
+   write.csv(est_type_metrics, file = "outputs/rle_est_metrics_per_type.csv")
+```
+
+#### Output tables
+
+```{r}
+# 2018 summaries
+# make summary counts of RLE categories per HGM
+ 
+  rle24_sum <- est_type_metrics %>%
+    group_by(RLE_24, Biogeographical_Region) %>%
+  summarise(count = n(),.groups = 'drop') %>%
+  pivot_wider(names_from = RLE_24, 
+              values_from = count, values_fill = 0) %>%
+  relocate(VU, .before = EN)%>%
+     # Add row-wise TOTAL
+  rowwise() %>%
+  mutate(Total = sum(c_across(where(is.numeric)))) %>%
+  ungroup() %>%
+  # Add TOTAL row (column-wise sums)
+  bind_rows(summarise(., Biogeographical_Region = "Total", across(where(is.numeric), sum))) %>%
+  # Add RLE index
+  mutate(RLIE = (1-((CR*4)+(EN*3)+(VU*2)+(LC*1))/((CR+EN+VU+LC)*5))) %>%
+     mutate(Biogeographical_Region = factor(Biogeographical_Region, levels = c("Total", "dTropical", "cSubTrop" , "bWTemp", "aCTemp"))) %>% ## ggplot plots inverted factors!
+   arrange(Biogeographical_Region)
+ 
+  
+ # export a csv of results - COUNT of RLE 24 per biorg zone
+ write.csv(rle24_sum, file = "outputs/rle24_est_sum_count.csv") 
+ 
+ # make summary of extent of RLE
+ rle24_sum_ext <- est_type_metrics %>%
+    group_by(RLE_24, Biogeographical_Region) %>%
+  summarise(extent = round(sum(tot_ext24)/1000000, 0),.groups = 'drop') %>%
+  pivot_wider(names_from = RLE_24, 
+              values_from = extent, values_fill = 0) %>%
+  relocate(VU, .before = EN)%>%
+    # Add row-wise TOTAL
+  rowwise() %>%
+  mutate(Total = sum(c_across(where(is.numeric)))) %>%
+  ungroup() %>%
+  # Add TOTAL row (column-wise sums)
+  bind_rows(summarise(., Biogeographical_Region = "Total", across(where(is.numeric), sum))) %>%
+   mutate(Biogeographical_Region = factor(Biogeographical_Region, levels = c("Total", "dTropical", "cSubTrop" , "bWTemp", "aCTemp"))) %>% ## ggplot plots inverted factors!
+   arrange(Biogeographical_Region)
+ 
+ 
+ # export a csv of results - EXTENT (km) of REL 24 per biorg zone
+  write.csv(rle24_sum_ext, file = "outputs/rle24_est_sum_ext.csv")
+ 
+```
+
+#### **Make graphs for NBA**
+
+```{r}
+
+# load nbaR package : first run this in console devtools::install_github("SANBI-NBA/nbaR") 
+library(nbaR)
+library(extrafont) # this has tools for embedding fonts in vector graphics which 
+# is required by the design team of the booklet.
+loadfonts(device = "pdf") # this is required as device = cairo_pdf is not compatible with CorelDraw
+
+# Use NBA package to make rle graph (need high res output for booklet)
+pd_rle24_count <- rle24_sum %>%
+    rename(`Critically Endangered` = CR, 
+           `Endangered` = EN, 
+           `Vulnerable` = VU, 
+           `Least Concern` = LC ) # %>%
+  # select(-...1) # required if importing from CSV
+ 
+rle24_barplot_count <- nba_plot(pd_rle24_count,
+                  `Biogeographical_Region`,
+                  2:5,
+                 CHRT = "bar",
+                 NUM = TRUE,
+                 LAB = "Percentage of ecosystem types",
+                 SAVE = NULL,
+                 SCALE_TEXT = 0.6)
+
+rle24_barplot_count <- rle24_barplot_count +
+  theme(
+    legend.position = "bottom",             # keep it at the bottom
+    legend.margin = margin(l = -45, r = -5, t = -5, b = -5)) 
+
+#export the 2024 plot of counts 
+ggsave(
+  filename = "outputs/rle24_est_barplot_count.png", # File name
+  plot = rle24_barplot_count,                  # Plot object
+    width = 9, height = 7, units = "cm",        # Dimensions
+     dpi = 300)                                 # Resolution
+
+
+# graphs for extent per biogr zone per rle category
+
+pd_rle24_ext <- rle24_sum_ext %>%
+    rename(`Critically Endangered` = CR, 
+           `Endangered` = EN, 
+           `Vulnerable` = VU, 
+           `Least Concern` = LC ) # %>%
+  # select(-...1) # required if importing from CSV
+ 
+rle24_barplot_ext <- nba_plot(pd_rle24_ext,
+                  `Biogeographical_Region`,
+                  2:5,
+                 CHRT = "bar",
+                 NUM = FALSE,
+                 LAB = "Extent of ecosystem types",
+                 SAVE = NULL,
+                 SCALE_TEXT = 0.6)
+
+rle24_barplot_ext <- rle24_barplot_ext +
+  theme(
+    legend.position = "bottom",             # keep it at the bottom
+    legend.margin = margin(l = -45, r = -5, t = -5, b = -5)) 
+
+#export the 2024 plot of counts 
+ggsave(
+  filename = "outputs/rle24_est_barplot_ext.png", # File name
+  plot = rle24_barplot_ext,                  # Plot object
+    width = 9, height = 7, units = "cm",        # Dimensions
+     dpi = 300)                                 # Resolution
+
+
+# Make a line plot of EPL Index using 2018 and 2014 timepoints - request Natasha to impve this or add to package.
+
+EPLI <- epl24_sum %>%
+  select(Biogeographical_Region, EPLI) %>% 
+  rename(EPLI24 = EPLI) %>%
+   left_join(epl18_sum, by ="Biogeographical_Region") %>%
+   rename(EPLI18 = EPLI) %>%
+   rename(Zone = Biogeographical_Region) %>%
+  select(Zone,EPLI18, EPLI24) %>%
+  pivot_longer(cols = c(2,3), names_to = "Year", values_to = "EPLI") %>%
+    mutate(Year = case_when(
+    Year == "EPLI18" ~ "2018",
+    Year == "EPLI24" ~ "2024",
+    TRUE ~ Year
+  ))
+  
+ epli_line_plot <- ggplot(EPLI, aes(x = Year, y = EPLI, group = Zone)) +
+  geom_line(aes(linetype = Zone, color = Zone), linewidth = 1.2) +
+  geom_point(aes(color = Zone), size = 2) +
+  theme_minimal() +
+  labs(x = "Year", y = "EPLI") +
+  scale_x_discrete(limits = c("2018", "2024")) +
+  scale_color_manual(values = c(
+    "Total" = "black",
+    "aCTemp" = "blue",
+    "bWTemp" = "darkgreen",
+    "cSubTrop" = "brown",
+    "dTropical" = "orange"
+  )) +
+  coord_cartesian(ylim = c(0.1, 0.9)) +
+    guides(color = guide_legend(reverse = TRUE),
+         linetype = guide_legend(reverse = TRUE)) +
+  theme(legend.title = element_blank())
+  
+   
+  epli_line_plot
+  
+  #export the graph
+ggsave(
+  filename = "outputs/epli_est_line_plot.pdf", # File name
+  plot = epli_line_plot,                   # Plot object
+  device = "pdf",                        # File format
+  width = 12, height = 10, units = "cm",   # Dimensions
+)
+```
