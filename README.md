@@ -10,17 +10,17 @@ July 2025
 
 This repository contains a workflow that results in the NBA 2025 Red List of Ecosystems indicator for Estuarine Ecosystems of South Africa.
 
-The Quarto document [RLE_estuaries.qmd](RLE_estuaries.qmd) describes the import of the South African estuary spatial data and Estuarine Health assessment tables (van Niekerk et al., 20240. The data were analysed using the sf package in R and summarised using the tidyverse.
+The Quarto document [RLE_estuaries.qmd](RLE_estuaries.qmd) describes the import of the South African estuary spatial data and Estuarine Health assessment tables (van Niekerk et al., 2024). The data were analysed using the sf package in R and summarised using the tidyverse.
 
-Estuarine Health Scores are assigned to PES categories A-F and Condition Classes (Natural - Severely modified) according to the table below.
+Estuarine Condition (Health) scores (0-100) are assigned to PES categories (A-F) and NBA Modification categories (Natural - Severely modified) according to the table below.
 
-| Estuarine Health SCORE | Ecological State CLASS | Condition CATEGORY           |
-|------------------------|-------------------|------------------------------|
-| \>= 90                 | A                      | Natural                      |
-| \>=75 & \< 90          | B                      | Near Natural                 |
-| \>= 60 & \< 75         | C                      | Moderately Modified          |
-| \>=40 & \< 60          | D                      | Heavily Modified             |
-| \< 40                  | E/F                    | Severely/Critically Modified |
+| Condition score (0-100) | "PES" category | Modification category        |
+|-------------------------|----------------|------------------------------|
+| \>= 90                  | A              | Natural                      |
+| \>=75 & \< 90           | B              | Near Natural                 |
+| \>= 60 & \< 75          | C              | Moderately Modified          |
+| \>=40 & \< 60           | D              | Heavily Modified             |
+| \< 40                   | E/F            | Severely/Critically Modified |
 
 : The Red List of Ecosystems (also known as Ecosystem Threat Status in South Africa) assesses the risk of collapse of each ecosystem type based on a range of criteria on extent, condition and pressures faced by each ecosystem type.
 
@@ -35,7 +35,9 @@ Summary table - count of estuarine ecosystem types per biogeographic zone per RL
 Summary table - extent of estuarine ecosystem per biogeographic zone per RLE category [rle24_est_sum_ext.csv](outputs/rle24_est_sum_ext.csv)
 
 | RLE - count of types per category | RLE - extent of types per category |
-|----|----|
+|------------------------------------|------------------------------------|
 | ![](outputs/rle24_est_barplot_count.png) | ![](outputs/rle24_est_barplot_ext.png) |
 
-: RLE for Estuaries 2025
+RLE Index
+
+![](outputs/rlie_est_line_plot.png)
