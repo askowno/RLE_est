@@ -35,7 +35,7 @@ Summary table - count of estuarine ecosystem types per biogeographic zone per RL
 Summary table - extent of estuarine ecosystem per biogeographic zone per RLE category [rle24_est_sum_ext.csv](outputs/rle24_est_sum_ext.csv)
 
 | RLE - count of types per category | RLE - extent of types per category |
-|------------------------------------|------------------------------------|
+|----|----|
 | ![](outputs/rle24_est_barplot_count.png) | ![](outputs/rle24_est_barplot_ext.png) |
 
 RLE Index

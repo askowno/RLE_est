@@ -1,6 +1,6 @@
-"","biogeographical_zone","CR","VU","EN","LC","Total"
-"1","Total",58,6,1202,728,1994
-"2","dTropical",0,0,0,82,82
-"3","cSubTrop",28,0,926,149,1103
-"4","bWTemp",0,6,0,437,443
-"5","aCTemp",30,0,276,60,366
+"","biogeographical_zone","LC","VU","EN","CR","Total"
+"1","Total",728,6,1202,58,1994
+"2","dTropical",82,0,0,0,82
+"3","cSubTrop",149,0,926,28,1103
+"4","bWTemp",437,6,0,0,443
+"5","aCTemp",60,0,276,30,366
