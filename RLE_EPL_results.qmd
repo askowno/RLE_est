@@ -1,0 +1,68 @@
+---
+title: "RLE_EPL_results"
+format: html
+---
+
+```{r}
+library(sf)
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+# Load the RLE and EPL results for Estuaries and then combine them and join to estuaries patial data
+RLE <- read.csv("C:/Rdata/RLE_est/outputs/rle_est_metrics_per_type.csv")
+EPL <- read.csv("C:/Rdata/EPL_est/outputs/epl_est_metrics_per_type.csv")
+
+# select only cols required and then join
+RLE <- RLE %>%
+  select(full_ecosystem_type_name, RLE18, RLE24)
+EPL <- EPL %>%
+  select(full_ecosystem_type_name, biogeographical_zone, EPL18_model, EPL24_model) %>% 
+  rename(EPL18 = EPL18_model, EPL24 = EPL24_model)
+  
+est_results <- RLE %>%
+  left_join(EPL, by = "full_ecosystem_type_name") %>%
+  # combine RLE and EPL into a new col
+  unite("RLE_EPL24", RLE24, EPL24, sep = "_", remove = FALSE) %>%
+  # order the cols to show unluckies in right sequence
+  mutate(RLE24 = factor(RLE24, levels = c("LC", "VU", "EN", "CR"), ordered = TRUE)) %>%
+  mutate(EPL24 = factor(EPL24, levels = c("NP", "PP", "MP", "WP"), ordered = TRUE)) %>%
+    mutate(RLE_EPL24 = factor(RLE_EPL24, levels = c("LC_WP", "LC_MP", "VU_WP", "VU_MP", "LC_PP",  "LC_NP",  "VU_PP", "VU_NP", "EN_WP", "EN_MP",  "CR_WP", "CR_MP","EN_PP" , "EN_NP","CR_PP", "CR_NP"), ordered = TRUE)) %>%
+  relocate(biogeographical_zone, .after = full_ecosystem_type_name) %>%
+  relocate(RLE_EPL24, .after = EPL24)
+
+# write results
+write.csv(est_results, file = "outputs/RLE_EPL_est_results.csv")
+
+```
+
+```{r}
+# Add spatial data - use IEM Jan 2025 then extract Estuaries
+est_v <-st_read("C:/Users/skownoa/Dropbox/NBAwork/IEMworking/IEM5_12_07012025.gdb", layer = "IEM5_12_07012025") 
+est_v <- est_v %>%
+  mutate(outletID = as.numeric(E_EstID)) %>% # IEM miss names outletID as EstID (these are different codes)
+  filter(outletID > 0, E_Est_BrdG != "Micro-System") %>% # select only estuaries and exclude micros 
+  group_by(outletID) %>%
+  summarise(Shape = st_union(Shape), .groups = "drop")  
+
+# Add tabular data (in excel change sheet name to Data, and remove last two rows on NAs, change cols with numbers at start of name )
+est_t <- read_excel("C:/Users/skownoa/Dropbox/NBAwork/Estuaries/estuary_assesment2025_v1.xlsx", sheet = "Data")
+
+# select colums from  health spreadsheet import
+est_t <- est_t %>%
+  select(outletID,  estID, east_DD, south_DD, est_name, full_ecosystem_type_name, est_ecosystem_type_code, efz_ha, condition24, condition18, condition11, fishing_effort24, fishing_effort18, fishing_effort11)
+
+#combine clean spatial dataset with clean tabular dataset
+est_v <- est_v %>%
+  left_join(est_t, by = "outletID") 
+```
+
+```{r}
+# Prepare output spatial data with combined RLE and EPL results 
+est_results_vector <- est_v %>%
+  left_join(est_results, by = "full_ecosystem_type_name") %>%
+  relocate(biogeographical_zone, .after = full_ecosystem_type_name)
+ 
+st_write(est_results_vector, "C:/Users/skownoa/Dropbox/NBAwork/Estuaries/est_results_vector.gpkg") 
+```

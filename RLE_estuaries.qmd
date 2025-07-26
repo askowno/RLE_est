@@ -505,10 +505,9 @@ ggsave(
 ```
 
 ```{r}
-# Prepare output spatial data 
-est_rle_res_v <- est_v3 %>%
-  left_join(est_type_metrics, by = "full_ecosystem_type_name") %>%
-  relocate(biogeographical_zone, .after = full_ecosystem_type_name)
- 
-st_write(est_rle_res_v, "C:/Users/skownoa/Dropbox/NBAwork/Estuaries/est_rle_results.gpkg") 
+
+```
+
+```{r}
+
 ```
