@@ -170,19 +170,35 @@ est_lc_metrics <- est_t2 %>%
          prpnat2018 = nat2018/type_area, prpnat2022 = nat2022/type_area) %>%
   #metrics for A2b
   mutate(ard9022 = (nat1990-nat2022)/(2022-1990)) %>%
-  mutate(nat2040 = nat1990 - (ard9022*50))  %>%
-  mutate(prplost9040 = (nat1990-nat2040)/nat1990) %>%
-  # assessment
+  mutate(nat40_9022 = nat1990 - (ard9022*50))  %>%
+  mutate(prplost9040_9022 = (nat1990-nat40_9022)/nat1990) %>%
+  mutate(ard9018 = (nat1990-nat2018)/(2018-1990)) %>%
+  mutate(nat40_9018 = nat1990 - (ard9018*50))  %>%
+  mutate(prplost9040_9018 = (nat1990-nat40_9018)/nat1990) %>%
+    # assessment 2024
   mutate(A3_24 = case_when(prpnat2022 < 0.1 ~ "CR",
                         prpnat2022 < 0.3 ~ "EN", 
                         prpnat2022 < 0.5 ~ "VU", 
                         TRUE ~"LC")) %>%
   mutate(A3_24 = factor(A3_24, levels = c("LC","VU", "EN", "CR"), ordered = TRUE)) %>%
-  mutate(A2b_24 = case_when(prplost9040 >= 0.8 ~ "CR",
-                         prplost9040 >= 0.5 ~ "EN",
-                         prplost9040 >= 0.3 ~ "VU", 
+  mutate(A2b_24 = case_when(prplost9040_9022 >= 0.8 ~ "CR",
+                         prplost9040_9022 >= 0.5 ~ "EN",
+                         prplost9040_9022 >= 0.3 ~ "VU", 
                          TRUE ~ "LC")) %>%
-  mutate(A2b_24 = factor(A2b_24, levels = c("LC","VU", "EN", "CR" ), ordered = TRUE)) 
+  mutate(A2b_24 = factor(A2b_24, levels = c("LC","VU", "EN", "CR" ), ordered = TRUE)) %>%
+# assessment 2018
+ mutate(A3_18 = case_when(prpnat2018 < 0.1 ~ "CR",
+                        prpnat2018 < 0.3 ~ "EN", 
+                        prpnat2018 < 0.5 ~ "VU", 
+                        TRUE ~"LC")) %>%
+  mutate(A3_18 = factor(A3_18, levels = c("LC","VU", "EN", "CR"), ordered = TRUE)) %>%
+  mutate(A2b_18 = case_when(prplost9040_9018 >= 0.8 ~ "CR",
+                         prplost9040_9018 >= 0.5 ~ "EN",
+                         prplost9040_9018 >= 0.3 ~ "VU", 
+                         TRUE ~ "LC")) %>%
+  mutate(A2b_18 = factor(A2b_18, levels = c("LC","VU", "EN", "CR" ), ordered = TRUE)) 
+
+
 ```
 
 Criterion B calculation
@@ -295,13 +311,13 @@ est_type_11 <- est %>%
    mutate(B1aii_24 = factor(B1aii_24, levels = c("LC","VU", "EN", "CR"), ordered = TRUE)) %>%
   # add the table with A3 and Asb
     left_join(est_lc_metrics, by = "full_ecosystem_type_name") %>%
-    relocate(D3_18, B1aii_18, D3_24, B1aii_24, A2b_24, A3_24, .after = prplost9040) %>%
+    relocate(D3_18, B1aii_18, D3_24, B1aii_24, A2b_24, A3_24, .after = prplost9040_9018) %>%
   # overall RLE outcome
      rowwise() %>%
    mutate(RLE24 = max(c_across(all_of(c("D3_24", "B1aii_24", "A2b_24", "A3_24"))), na.rm = TRUE)) %>%
      ungroup() %>%
     rowwise() %>%
-   mutate(RLE18 = max(c_across(all_of(c("D3_18", "B1aii_18", "A2b_24", "A3_24"))), na.rm = TRUE)) %>%
+   mutate(RLE18 = max(c_across(all_of(c("D3_18", "B1aii_18", "A2b_18", "A3_18"))), na.rm = TRUE)) %>%
      ungroup()
     
    

@@ -64,5 +64,5 @@ est_results_vector <- est_v %>%
   left_join(est_results, by = "full_ecosystem_type_name") %>%
   relocate(biogeographical_zone, .after = full_ecosystem_type_name)
  
-st_write(est_results_vector, "C:/Users/skownoa/Dropbox/NBAwork/Estuaries/est_results_vector.gpkg") 
+st_write(est_results_vector, "C:/Users/skownoa/Dropbox/NBAwork/Estuaries/est_results_vector.gpkg", delete_dsn = TRUE) 
 ```
