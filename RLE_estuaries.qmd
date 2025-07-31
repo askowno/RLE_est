@@ -19,10 +19,12 @@ est_v <- est_v %>%
   mutate(outletID = as.numeric(E_EstID)) %>% # IEM miss names outletID as EstID (these are different codes)
   filter(outletID > 0, E_Est_BrdG != "Micro-System") # select only estuaries and exclude micros 
 
-
 # Add tabular data (in excel change sheet name to Data, and remove last two rows on NAs, change cols with numbers at start of name )
 est_t <- read_excel("C:/Users/skownoa/Dropbox/NBAwork/Estuaries/estuary_assesment2025_v1.xlsx", sheet = "Data")
 
+# load supplementary data from nba2018 on the eoo a00 and number of locaitons and ongoing decline
+est_supp <- read_csv("C:/Users/skownoa/Dropbox/NBAwork/Estuaries/from_nba2018_eoo_aoo_numfeat.csv")
+est_feat <- est_supp %>% select(full_ecosystem_type_name, features, declnba18)
 ```
 
 #### Clean up input data
@@ -298,7 +300,7 @@ est_type_11 <- est %>%
        prp24_cde >= 0.9 ~ "VU", 
        TRUE ~ "LC")) %>%
      mutate(D3_24 = factor(D3_24, levels = c("LC","VU", "EN", "CR"), ordered = TRUE)) %>%
-#  B1i using ongoing decline  
+#  B1aii using ongoing decline  
    mutate(B1aii_18 = case_when( pes_decline1118 == "decline118" & eoo_km2  <= 2000 ~ "CR",
        pes_decline1118 == "decline1118" & eoo_km2  <= 20000 ~ "EN",
        pes_decline1118 == "decline1118" & eoo_km2  <= 50000 ~ "VU",
@@ -311,14 +313,26 @@ est_type_11 <- est %>%
    mutate(B1aii_24 = factor(B1aii_24, levels = c("LC","VU", "EN", "CR"), ordered = TRUE)) %>%
   # add the table with A3 and Asb
     left_join(est_lc_metrics, by = "full_ecosystem_type_name") %>%
-    relocate(D3_18, B1aii_18, D3_24, B1aii_24, A2b_24, A3_24, .after = prplost9040_9018) %>%
-  # overall RLE outcome
+   # add B3 2018 table and assessment - could also add 2024 if lara wantrs to do this for now assume 18=24
+    left_join(est_feat, by = "full_ecosystem_type_name") %>%
+   mutate(B3_18 = case_when(features <=5 & declnba18 == "yes" ~ "VU", 
+                         TRUE ~ "LC")) %>%
+    mutate(B3_18 = factor(B3_18, levels = c("LC","VU", "EN", "CR"), ordered = TRUE)) %>%
+  # make B3 24 = 18
+   mutate(B3_24 = B3_18)%>% 
+   #clean up order of cols
+   relocate(A2b_18, A3_18, B1aii_18, B3_18, D3_18,  A2b_24, A3_24,  B1aii_24, B3_24, D3_24 , .after = prplost9040_9018) %>%
+  # overall RLE outcome USING ONLY A2b A3 B3 D3
      rowwise() %>%
-   mutate(RLE24 = max(c_across(all_of(c("D3_24", "B1aii_24", "A2b_24", "A3_24"))), na.rm = TRUE)) %>%
+    mutate(RLE18 = max(c_across(all_of(c("D3_18",  "B1aii_18","B3_18", "A2b_18", "A3_18"))), na.rm = TRUE)) %>%
+    mutate(RLE24 = max(c_across(all_of(c("D3_24", "B1aii_24", "B3_24", "A2b_24", "A3_24"))), na.rm = TRUE)) %>%
      ungroup() %>%
-    rowwise() %>%
-   mutate(RLE18 = max(c_across(all_of(c("D3_18", "B1aii_18", "A2b_18", "A3_18"))), na.rm = TRUE)) %>%
-     ungroup()
+   rowwise() %>%
+  mutate(trigger18 = paste(c("A2b_18", "A3_18", "B1aii_18", "B3_18", "D3_18")
+                           [c_across(A2b_18:D3_18) == RLE18], collapse = ", ")) %>%
+  mutate(trigger24 = paste(c("A2b_24", "A3_24", "B1aii_24", "B3_24", "D3_24")
+                           [c_across(A2b_24:D3_24) == RLE24], collapse = ", ")) %>%
+   ungroup()  
     
    
    # reattached bioregions
@@ -330,7 +344,7 @@ est_type_11 <- est %>%
       left_join(bioreg , by = "full_ecosystem_type_name" ) %>%
       relocate(biogeographical_zone, .after = full_ecosystem_type_name)
       
- 
+
     
    # export a csv of results - Condition and EPL per river type 2018 and 2024
    write.csv(est_type_metrics, file = "outputs/rle_est_metrics_per_type.csv")
@@ -398,6 +412,8 @@ rle18_sum <- est_type_metrics %>%
   bind_rows(summarise(., biogeographical_zone = "Total", across(where(is.numeric), sum))) %>%
    mutate(biogeographical_zone = factor(biogeographical_zone, levels = c("Total", "dTropical", "cSubTrop" , "bWTemp", "aCTemp"))) %>% ## ggplot plots inverted factors!
    arrange(biogeographical_zone)
+ 
+ 
  
  # export a csv of results - EXTENT (km) of REL 24 per biorg zone
   write.csv(rle24_sum_ext, file = "outputs/rle24_est_sum_ext.csv")
