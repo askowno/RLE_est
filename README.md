@@ -42,9 +42,13 @@ Summary table - count of estuarine ecosystem types per biogeographic zone per RL
 
 Summary table - extent of estuarine ecosystem per biogeographic zone per RLE category [rle24_est_sum_ext.csv](outputs/rle24_est_sum_ext.csv)
 
-| RLE - count of types per category | RLE - extent of types per category |
+| RLE24 - count of types per category | RLE24 - extent of types per category |
 |------------------------------------|------------------------------------|
 | ![](outputs/rle24_est_barplot_count.png) | ![](outputs/rle24_est_barplot_ext.png) |
+
+| RLE18 - count of types per category      |
+|------------------------------------------|
+| ![](outputs/rle18_est_barplot_count.png) |
 
 **RLE Index**
 
@@ -52,11 +56,13 @@ Reflecting changes in ecosystem RLE between 2018 and 2024
 
 | RLIE |   |
 |------------------------------------|------------------------------------|
-| ![](outputs/rlie_est_line_plot.png) | Red List Index of Ecosystems between 2018 and 2024 |
+| ![](outputs/rlie_est_line_plot.png) | Red List Index of Ecosystems between 2018 and 2024. Slight improvement in WT and ST by decline in CT |
 
 **Combined RLE and EPL results**
 
 The Quarto document [RLE_EPL_results.qmd](RLE_EPL_results.qmd) describes the combination of the RLE and EPL results and the production of a spatial version of the results attached to a estuarine functional zone map extracted from the South African IEM5_12_07012025 (curated by SANBI).
+
+The consolidated estuarine results table can be found here: [RLE_EPL_est_results_est.csv](outputs/RLE_EPL_est_results_est.csv)
 
 **Highly threatened and under-protected ecosystems**
 

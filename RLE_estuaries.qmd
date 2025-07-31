@@ -322,7 +322,7 @@ est_type_11 <- est %>%
    mutate(B3_24 = B3_18)%>% 
    #clean up order of cols
    relocate(A2b_18, A3_18, B1aii_18, B3_18, D3_18,  A2b_24, A3_24,  B1aii_24, B3_24, D3_24 , .after = prplost9040_9018) %>%
-  # overall RLE outcome USING ONLY A2b A3 B3 D3
+  # overall RLE outcome USING  A2b A3 B1 B3 D3
      rowwise() %>%
     mutate(RLE18 = max(c_across(all_of(c("D3_18",  "B1aii_18","B3_18", "A2b_18", "A3_18"))), na.rm = TRUE)) %>%
     mutate(RLE24 = max(c_across(all_of(c("D3_24", "B1aii_24", "B3_24", "A2b_24", "A3_24"))), na.rm = TRUE)) %>%
@@ -332,7 +332,26 @@ est_type_11 <- est %>%
                            [c_across(A2b_18:D3_18) == RLE18], collapse = ", ")) %>%
   mutate(trigger24 = paste(c("A2b_24", "A3_24", "B1aii_24", "B3_24", "D3_24")
                            [c_across(A2b_24:D3_24) == RLE24], collapse = ", ")) %>%
-   ungroup()  
+   ungroup()  %>%
+   # add in 2018 approach  SA approach assuming A and B are intact rest is lost but also counting C towards  VU
+        mutate(A3sa_18 = case_when( prp18_de >= 0.8 ~ "CR", 
+                                  prp18_de >= 0.65 ~ "EN",
+                                  prp18_de >= 0.4 ~ "VU", 
+                                 TRUE ~ "LC")) %>%
+   mutate(A3sa_18 = factor(A3sa_18, levels = c("LC","VU", "EN", "CR"), ordered = TRUE)) %>%
+        mutate(A3sa_24 = case_when( prp24_de >= 0.8 ~ "CR", 
+                                  prp24_de >= 0.65 ~ "EN",
+                                  prp24_de >= 0.4 ~ "VU", 
+                                 TRUE ~ "LC")) %>%
+   mutate(A3sa_24 = factor(A3sa_24, levels = c("LC","VU", "EN", "CR"), ordered = TRUE)) %>%
+   # Overall ETS + RLE using ETS B3
+    rowwise() %>%
+    mutate(ETS18 = max(c_across(all_of(c("A3sa_18", "B3_18", "D3_24" ))), na.rm = TRUE)) %>%
+    mutate(ETS24 = max(c_across(all_of(c("A3sa_24","B3_24", "D3_24"))), na.rm = TRUE)) %>%
+     ungroup() %>%
+   rowwise() %>%
+   relocate(A3sa_18, A3sa_24, ETS18, ETS24, .after = D3_24) %>%
+   relocate(features, declnba18, .before = A2b_18)
     
    
    # reattached bioregions
@@ -353,7 +372,7 @@ est_type_11 <- est %>%
 #### Output tables
 
 ```{r}
-# 2024 summaries
+# 2024 summaries of RLE 
 # make summary counts of RLE categories per zone
  
   rle24_sum <- est_type_metrics %>%
@@ -414,15 +433,58 @@ rle18_sum <- est_type_metrics %>%
    arrange(biogeographical_zone)
  
  
- 
  # export a csv of results - EXTENT (km) of REL 24 per biorg zone
   write.csv(rle24_sum_ext, file = "outputs/rle24_est_sum_ext.csv")
  
 ```
 
-#### **Make graphs for NBA**
+**Summarise SA ETS approach results**
 
 ```{r}
+# make summary counts of ETS SA  categories per zone
+ 
+  rle24sa_sum <- est_type_metrics %>%
+    group_by(ETS24, biogeographical_zone) %>%
+  summarise(count = n(),.groups = 'drop') %>%
+  pivot_wider(names_from = ETS24, 
+              values_from = count, values_fill = 0) %>%
+  relocate(VU, .before = EN)%>%
+     # Add row-wise TOTAL
+  rowwise() %>%
+  mutate(Total = sum(c_across(where(is.numeric)))) %>%
+  ungroup() %>%
+  # Add TOTAL row (column-wise sums)
+  bind_rows(summarise(., biogeographical_zone = "Total", across(where(is.numeric), sum))) %>%
+     mutate(biogeographical_zone = factor(biogeographical_zone, levels = c("Total", "dTropical", "cSubTrop" , "bWTemp", "aCTemp"))) %>% ## ggplot plots inverted factors!
+   arrange(biogeographical_zone)
+ 
+ # export a csv of results - COUNT of ETS 24 per biorg zone
+ write.csv(rle24sa_sum, file = "outputs/rle24sa_est_sum_count.csv") 
+
+ # 2018 summary 
+rle18sa_sum <- est_type_metrics %>%
+    group_by(ETS18, biogeographical_zone) %>%
+  summarise(count = n(),.groups = 'drop') %>%
+  pivot_wider(names_from = ETS18, 
+              values_from = count, values_fill = 0) %>%
+  relocate(VU, .before = EN)%>%
+     # Add row-wise TOTAL
+  rowwise() %>%
+  mutate(Total = sum(c_across(where(is.numeric)))) %>%
+  ungroup() %>%
+  # Add TOTAL row (column-wise sums)
+  bind_rows(summarise(., biogeographical_zone = "Total", across(where(is.numeric), sum))) %>%
+       mutate(biogeographical_zone = factor(biogeographical_zone, levels = c("Total", "dTropical", "cSubTrop" , "bWTemp", "aCTemp"))) %>% ## ggplot plots inverted factors!
+   arrange(biogeographical_zone)
+ 
+ # export a csv of results - COUNT of ETS 18 per biorg zone
+ write.csv(rle18sa_sum, file = "outputs/rle18sa_est_sum_count.csv")  
+```
+
+#### **Make RLE graphs for NBA**
+
+```{r}
+
 
 # load nbaR package : first run this in console devtools::install_github("SANBI-NBA/nbaR") 
 library(nbaR)
@@ -491,6 +553,37 @@ ggsave(
      dpi = 300)                                 # Resolution
 
 
+# Make RLE 2018 graph based on counts ####################################
+
+pd_rle18_count <- rle18_sum %>%
+    rename(`Critically Endangered` = CR, 
+           `Endangered` = EN, 
+           `Vulnerable` = VU, 
+           `Least Concern` = LC ) # %>%
+  # select(-...1) # required if importing from CSV
+ 
+rle18_barplot_count <- nba_plot(pd_rle18_count,
+                  `biogeographical_zone`,
+                  2:5,
+                 CHRT = "bar",
+                 NUM = TRUE,
+                 LAB = "Percentage of ecosystem types",
+                 SAVE = NULL,
+                 SCALE_TEXT = 0.6)
+
+rle18_barplot_count <- rle18_barplot_count +
+  theme(
+    legend.position = "bottom",             # keep it at the bottom
+    legend.margin = margin(l = -45, r = -5, t = -5, b = -5)) 
+
+#export the 2018 plot of counts 
+ggsave(
+  filename = "outputs/rle18_est_barplot_count.png", # File name
+  plot = rle18_barplot_count,                  # Plot object
+    width = 9, height = 7, units = "cm",        # Dimensions
+     dpi = 300)                                 # Resolution
+
+
 # Make a line plot of EPL Index using 2018 and 2014 timepoints - request Natasha to impve this or add to package.
 
 RLIE <- rle24_sum %>%
@@ -506,7 +599,6 @@ RLIE <- rle24_sum %>%
     Year == "RLIE24" ~ "2024",
     TRUE ~ Year
   ))
-  
 
 rlie_line_plot <- ggplot(RLIE, aes(x = Year, y = RLIE, group = Zone)) +
   geom_line(aes(linetype = Zone, color = Zone), linewidth = 1.2) +
@@ -537,6 +629,71 @@ ggsave(
 ```
 
 ```{r}
+# Use NBA package to make ETS  graph (need high res output for booklet)
+pd_rle24sa_count <- rle24sa_sum %>%
+    rename(`Critically Endangered` = CR, 
+           `Endangered` = EN, 
+           `Vulnerable` = VU, 
+           `Least Concern` = LC ) # %>%
+  # select(-...1) # required if importing from CSV
+ 
+rle24sa_barplot_count <- nba_plot(pd_rle24sa_count,
+                  `biogeographical_zone`,
+                  2:5,
+                 CHRT = "bar",
+                 NUM = TRUE,
+                 LAB = "Percentage of ecosystem types",
+                 SAVE = NULL,
+                 SCALE_TEXT = 0.6)
+
+rle24sa_barplot_count <- rle24sa_barplot_count +
+  theme(
+    legend.position = "bottom",             # keep it at the bottom
+    legend.margin = margin(l = -45, r = -5, t = -5, b = -5)) 
+
+#export the 2024 plot of counts 
+ggsave(
+  filename = "outputs/rle24sa_est_barplot_count.png", # File name
+  plot = rle24sa_barplot_count,                  # Plot object
+    width = 9, height = 7, units = "cm",        # Dimensions
+     dpi = 300)                                 # Resolution
+
+
+
+# Make ETS  2018 graph based on counts ####################################
+
+pd_rle18sa_count <- rle18sa_sum %>%
+    rename(`Critically Endangered` = CR, 
+           `Endangered` = EN, 
+           `Vulnerable` = VU, 
+           `Least Concern` = LC ) # %>%
+  # select(-...1) # required if importing from CSV
+ 
+rle18sa_barplot_count <- nba_plot(pd_rle18sa_count,
+                  `biogeographical_zone`,
+                  2:5,
+                 CHRT = "bar",
+                 NUM = TRUE,
+                 LAB = "Percentage of ecosystem types",
+                 SAVE = NULL,
+                 SCALE_TEXT = 0.6)
+
+rle18sa_barplot_count <- rle18sa_barplot_count +
+  theme(
+    legend.position = "bottom",             # keep it at the bottom
+    legend.margin = margin(l = -45, r = -5, t = -5, b = -5)) 
+
+#export the 2018 plot of counts 
+ggsave(
+  filename = "outputs/rle18sa_est_barplot_count.png", # File name
+  plot = rle18sa_barplot_count,                  # Plot object
+    width = 9, height = 7, units = "cm",        # Dimensions
+     dpi = 300)                                 # Resolution
+
+
+
+
+
 
 ```
 
