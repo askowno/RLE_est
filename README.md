@@ -24,15 +24,15 @@ Estuarine Condition (Health) scores (0-100) are assigned to Present Ecological S
 
 : The IUCN RLE (v2) framework was applied and following criterion were assessed:
 
--   Criterion A2b (current rate of decline in ecosystem extent); based on land cover change rates between 1990 and 2022 - projected forward to 2040.
+-   **Criterion A2b** (current rate of decline in ecosystem extent); based on land cover change rates between 1990 and 2022 - projected forward to 2040.
 
--   Criterion A3 (historical reduction in ecosystem extent), based on land cover 2022
+-   **Criterion A3** (historical reduction in ecosystem extent), based on land cover 2022
 
--   Criterion B1aii was applied using EOO calculations with ongoing decline defined as a decline in the extent of good/moderate condition estuarine extent (PES Classes A, B, C) from the previous PES assessment period.
+-   **Criterion B3** was applied to the estuary types that occur at 5 or fewer locations - and for which there is ongoing decline defined as: a) between t1 and t2, fishing pressure shifts from M to H OR H to VH, OR b) PES class A, B and C extent declined by \>1%, OR extent of H and VH Fishing pressure at year of assessment is greater than 30% of type extent. This captures increasing or sustained gill-netting pressures, and steady decline in ecosystem condition as triggers.
 
--   Criterion B3 was applied to the estuary types that occur at 5 or fewer locations - and for which there is ongoing decline
+-   **Criterion D3** was applied to the Estuarine Ecological State Class (PES) data such that severity of biotic disruption of \>= 90% was assumed for PES classes E-F; Severity \>=70% was assigned to PES classes D-F; Severity \>=50% was assigned to PES classes C-F.
 
--   Criterion D3 was applied to the Estuarine Ecological State Class (PES) data such that severity of biotic disruption of \>= 90% was assumed for PES classes E-F; Severity \>=70% was assigned to PES classes D-F; Severity \>=50% was assigned to PES classes C-F. Each of the 22 estuary ecosystem types were assigned to one of the four risk categories: Critically Endangered, Endangered, Vulnerable and Least Concern. The highest risk category for these two criteria is selected as the threat / risk status for each river type.
+Each of the 22 estuary ecosystem types were assigned to one of the four risk categories: Critically Endangered, Endangered, Vulnerable and Least Concern. The highest risk category for these two criteria is selected as the threat / risk status for each river type.
 
 #### **Results:**
 
@@ -42,13 +42,13 @@ Summary table - count of estuarine ecosystem types per biogeographic zone per RL
 
 Summary table - extent of estuarine ecosystem per biogeographic zone per RLE category [rle24_est_sum_ext.csv](outputs/rle24_est_sum_ext.csv)
 
-| RLE24 - count of types per category | RLE24 - extent of types per category |
+| RLE 2024 - count of types per category | RLE 2024 - extent of types per category |
 |------------------------------------|------------------------------------|
 | ![](outputs/rle24_est_barplot_count.png) | ![](outputs/rle24_est_barplot_ext.png) |
 
-| RLE18 - count of types per category      |
-|------------------------------------------|
-| ![](outputs/rle18_est_barplot_count.png) |
+| RLE 2018 - count of types per category | RLE 2018 - extent of types per category |
+|------------------------------------|------------------------------------|
+| ![](outputs/rle18_est_barplot_count.png) | ![](outputs/rle18_est_barplot_ext.png) |
 
 **RLE Index**
 
@@ -56,7 +56,7 @@ Reflecting changes in ecosystem RLE between 2018 and 2024
 
 | RLIE |   |
 |------------------------------------|------------------------------------|
-| ![](outputs/rlie_est_line_plot.png) | Red List Index of Ecosystems between 2018 and 2024. Slight improvement in WT and ST by decline in CT |
+| ![](outputs/rlie_est_line_plot.png) | Red List Index of Ecosystems between 2018 and 2024. Showing increased risk of collapse for Cool Temperate Estuaries |
 
 **Combined RLE and EPL results**
 

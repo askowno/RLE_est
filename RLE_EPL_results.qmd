@@ -16,7 +16,7 @@ EPL <- read.csv("C:/Rdata/EPL_est/outputs/epl_est_metrics_per_type.csv")
 
 # select only cols required and then join
 RLE <- RLE %>%
-  select(full_ecosystem_type_name, RLE18, trigger18, RLE24, trigger24, ETS18, ETS24)
+  select(full_ecosystem_type_name, RLE18, trigger18, RLE24, trigger24)
 EPL <- EPL %>%
   select(full_ecosystem_type_name, biogeographical_zone, EPL18_model, EPL24_model) %>% 
   rename(EPL18 = EPL18_model, EPL24 = EPL24_model)
@@ -39,30 +39,16 @@ write.csv(est_results, file = "outputs/RLE_EPL_est_results.csv")
 
 ```{r}
 # Add spatial data - use IEM Jan 2025 then extract Estuaries
-est_v <-st_read("C:/Users/skownoa/Dropbox/NBAwork/IEMworking/IEM5_12_07012025.gdb", layer = "IEM5_12_07012025") 
-est_v <- est_v %>%
-  mutate(outletID = as.numeric(E_EstID)) %>% # IEM miss names outletID as EstID (these are different codes)
-  filter(outletID > 0, E_Est_BrdG != "Micro-System") %>% # select only estuaries and exclude micros 
-  group_by(outletID) %>%
-  summarise(Shape = st_union(Shape), .groups = "drop")  
-
-# Add tabular data (in excel change sheet name to Data, and remove last two rows on NAs, change cols with numbers at start of name )
-est_t <- read_excel("C:/Users/skownoa/Dropbox/NBAwork/Estuaries/estuary_assesment2025_v1.xlsx", sheet = "Data")
-
-# select colums from  health spreadsheet import
-est_t <- est_t %>%
-  select(outletID,  estID, east_DD, south_DD, est_name, full_ecosystem_type_name, est_ecosystem_type_code, efz_ha, condition24, condition18, condition11, fishing_effort24, fishing_effort18, fishing_effort11)
-
-#combine clean spatial dataset with clean tabular dataset
-est_v <- est_v %>%
-  left_join(est_t, by = "outletID") 
+est_v4 <- est_v2 %>%
+  left_join(est_t2, by = "outletID")
 ```
 
 ```{r}
 # Prepare output spatial data with combined RLE and EPL results 
-est_results_vector <- est_v %>%
+est_results_vector <- est_v4 %>%
   left_join(est_results, by = "full_ecosystem_type_name") %>%
-  relocate(biogeographical_zone, .after = full_ecosystem_type_name)
+  rename(biogeographical_zone = biogeographical_zone.x) %>%
+  select(-biogeographical_zone.y)
 est_results_vector <- st_transform(est_results_vector, 4326)
  
 st_write(est_results_vector, "C:/Users/skownoa/Dropbox/NBAwork/Estuaries/est_results_vector.gpkg", delete_dsn = TRUE) 
